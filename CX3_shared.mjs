@@ -45,6 +45,7 @@ const regularizeEvents = ({storedEvents, eventPool, sender, payload, config}) =>
   return storedEvents
 }
 
+/* DEPRECATED */
 const scheduledRefresh = ({refreshTimer, refreshInterval, job}) => {
   if (refreshTimer) {
     clearTimeout(refreshTimer)
@@ -80,13 +81,13 @@ const renderEvent = (event, {
   e.dataset.location = event.location || ''
   e.dataset.startDate = event.startDate
   e.dataset.endDate = event.endDate
+  e.dataset.today = event.today
   e.dataset.symbol = event.symbol.join(' ')
 
   e.style.setProperty('--calendarColor', event.color)
 
   //console.log('>', this.instanceId) // TODO : Make sharable.
   oppositeMagic(e, event)
-
   if (useSymbol && Array.isArray(event.symbol) && event.symbol.length > 0) {
     event.symbol.forEach((symbol) => {
       let exDom = document.createElement('span')
@@ -95,6 +96,7 @@ const renderEvent = (event, {
         exDom.classList.add('fa', ...(symbol.split(' ').map((s) => {
           return 'fa-' + (s.replace(/^fa\-/i, ''))
         })))
+        e.classList.add('useSymbol')
       } else {
         exDom.classList.add('noSymbol')
       }
@@ -107,7 +109,7 @@ const renderEvent = (event, {
   }
 
   let t = document.createElement('span') 
-  t.classList.add('eventTitle')
+  t.classList.add('title', 'eventTitle')
   t.innerHTML = event.title
   e.appendChild(t)
   return e
@@ -159,6 +161,7 @@ const prepareEvents = ({storedEvents, range, config}) => {
     ev.isFuture = isFuture(ev)
     ev.isFullday = ev.fullDayEvent
     ev.isMultiday = isMultiday(ev)
+    ev.today = thisMoment.toISOString().split('T')[0] === new Date(ev.startDate).toISOString().split('T')[0]
     return ev
   })
 
@@ -241,7 +244,7 @@ export {
   loaded,
   initModule,
   regularizeEvents,
-  scheduledRefresh,
+  //scheduledRefresh,
   prepareEvents,
   renderEvent,
   prepareMagic,
