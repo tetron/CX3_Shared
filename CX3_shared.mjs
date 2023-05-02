@@ -136,7 +136,7 @@ const renderEventAgenda = (event, {useSymbol, eventTimeOptions, locale}, tm)=> {
   time.classList.add('period')
 
   let startTime = document.createElement('div')
-  let st = new Date(event.startDate)
+  let st = new Date(+event.startDate)
   startTime.classList.add('time', 'startTime', (st.getDate() === tm.getDate()) ? 'inDay' : 'notInDay')
   startTime.innerHTML = new Intl.DateTimeFormat(locale, eventTimeOptions).formatToParts(st).reduce((prev, cur, curIndex, arr) => {
     prev = prev + `<span class="eventTimeParts ${cur.type} seq_${curIndex}">${cur.value}</span>`
@@ -145,7 +145,7 @@ const renderEventAgenda = (event, {useSymbol, eventTimeOptions, locale}, tm)=> {
   headline.appendChild(startTime)
 
   let endTime = document.createElement('div')
-  let et = new Date(event.endDate)
+  let et = new Date(+event.endDate)
   endTime.classList.add('time', 'endTime', (et.getDate() === tm.getDate()) ? 'inDay' : 'notInDay')
   endTime.innerHTML = new Intl.DateTimeFormat(locale, eventTimeOptions).formatToParts(et).reduce((prev, cur, curIndex, arr) => {
     prev = prev + `<span class="eventTimeParts ${cur.type} seq_${curIndex}">${cur.value}</span>`
@@ -182,29 +182,10 @@ const oppositeMagic = (e, original) => {
   e.style.setProperty('--oppositeColor', original.oppositeColor)
 }
 
-const prepareEvents = ({storedEvents, range, config}) => {
+const formatEvents = ({original, config}) => {
   const thisMoment = new Date()
-  const isCurrent = (ev) => {
-    let tm = Date.now()
-    return (ev.endDate >= tm && ev.startDate <= tm)
-  }
-  const isPassed = (ev) => {
-    return (ev.endDate < thisMoment.valueOf())
-  }
-  const isFuture = (ev) => {
-    return (ev.startDate > thisMoment.valueOf())
-  }
-  const isMultiday = (ev) => {
-    let s = new Date(ev.startDate)
-    let e = new Date(ev.endDate)
-    return ((s.getDate() !== e.getDate())
-      || (s.getMonth() !== e.getMonth())
-      || (s.getFullYear() !== e.getFullYear()))
-  }
 
-  let events = storedEvents.filter((evs) => {
-    return !(evs.endDate <= range[0] || evs.startDate >= range[1])
-  }).sort((a, b) => {
+  let events = original.sort((a, b) => {
     return (a.startDate === b.startDate) ? a.endDate - b.endDate : a.startDate - b.startDate
   }).map((ev) => {
     ev.startDate = +ev.startDate
@@ -216,23 +197,60 @@ const prepareEvents = ({storedEvents, range, config}) => {
     ev.isFuture = isFuture(ev)
     ev.isFullday = ev.fullDayEvent
     ev.isMultiday = isMultiday(ev)
-    ev.today = thisMoment.toISOString().split('T')[0] === new Date(ev.startDate).toISOString().split('T')[0]
+    ev.today = thisMoment.toISOString().split('T')[0] === new Date(+ev.startDate).toISOString().split('T')[0]
     return ev
   })
 
   if (typeof config.eventFilter === 'function') {
     events = events.filter(config.eventFilter)
   }
-
   if (typeof config.eventTransformer === 'function') {
     events = events.map(config.eventTransformer)
   }
-
   if (typeof config.eventSorter === 'function') {
     events = events.sort(config.eventSorter)
   }
 
   return events
+}
+
+const prepareEvents = ({storedEvents, config, range}) => {
+  let events = storedEvents.filter((evs) => {
+    return !(evs.endDate <= range[0] || evs.startDate >= range[1])
+  })
+  
+  return formatEvents({original: events, config})
+}
+
+
+
+const eventsByDate = ({storedEvents, config, startTime, dayCounts}) => {
+  let events = formatEvents({original: storedEvents, config})
+  let ebd = events.reduce((days, ev) => {
+    if (ev.endDate < startTime) return days
+
+    let st = new Date(+ev.startDate)
+    let et = new Date(+ev.endDate)
+
+    while(st.getTime() < et.getTime()) {
+      let day = new Date(st.getFullYear(), st.getMonth(), st.getDate(), 0, 0, 0, 0).getTime()
+      if (!days.has(day)) days.set(day, [])
+      days.get(day).push(ev)
+      st.setDate(st.getDate() + 1)
+    }
+    return days
+  }, new Map())
+
+  let startDay = new Date(+startTime).setHours(0, 0, 0, 0)
+  let days = Array.from(ebd.keys()).sort()
+  let position = days.findIndex((d) => d >= startDay)
+
+  return days.slice(position, position + dayCounts).map((d) => {
+    return {
+      date: d,
+      events: ebd.get(d)
+    }
+  })
 }
 
 const prepareMagic = () => {
@@ -296,8 +314,8 @@ const displayLegend = (dom, events, options = {}) => {
 
 const isToday = (d) => {
   let tm = new Date()
-  let start = (new Date(tm.valueOf())).setHours(0, 0, 0, 0)
-  let end = (new Date(tm.valueOf())).setHours(23, 59, 59, 999)
+  let start = (new Date(tm.getTime())).setHours(0, 0, 0, 0)
+  let end = (new Date(tm.getTime())).setHours(23, 59, 59, 999)
   return (d.getTime() >= start && d.getTime() <= end)
 }
 
@@ -329,7 +347,7 @@ const getWeekNo = (d, options) => {
   let fw = getBeginOfWeek(new Date(d.getFullYear(), 0, options.minimalDaysOfNewYear), options)
   if (bow.getTime() < fw.getTime()) fw = getBeginOfWeek(new Date(d.getFullYear() - 1, options), 0, options.minimalDayosOfNewYear)
   let count = 1;
-  let t = new Date(fw.valueOf())
+  let t = new Date(fw.getTime())
   while (bow.getTime() > t.getTime()) {
     t.setDate(t.getDate() + 7)
     count++;
@@ -351,8 +369,8 @@ const isCurrent = (ev) => {
 }
 
 const isMultiday = (ev) => {
-  let s = new Date(ev.startDate)
-  let e = new Date(ev.endDate)
+  let s = new Date(+ev.startDate)
+  let e = new Date(+ev.endDate)
   return ((s.getDate() !== e.getDate())
     || (s.getMonth() !== e.getMonth())
     || (s.getFullYear() !== e.getFullYear()))
@@ -397,6 +415,7 @@ export {
   regularizeEvents,
   //scheduledRefresh,
   prepareEvents,
+  eventsByDate,
   renderEvent,
   renderEventAgenda,
   prepareMagic,
