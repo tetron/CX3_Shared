@@ -6,18 +6,11 @@ const uid = Date.now()
 
 const magicPool = new Map()
 
-const getL = (rgba) => {
+const getContrastYIQ = (rgba) => {
   let [r, g, b, a] = rgba.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*(\d+\.{0,1}\d*))?\)$/).slice(1)
-  r /= 255
-  g /= 255
-  b /= 255
-  const l = Math.max(r, g, b)
-  const s = l - Math.min(r, g, b)
-  const h = s ? l === r ? (g - b) / s : l === g ? 2 + (b - r) / s : 4 + (r - g) / s : 0
-  // let rh = 60 * h < 0 ? 60 * h + 360 : 60 * h
-  // let rs = 100 * (s ? (l <= 0.5 ? s / (2 * l - s) : s / (2 - (2 * l - s))) : 0)
-  let rl = (100 * (2 * l - s)) / 2
-  return rl
+
+  var yiq = ((r*299)+(g*587)+(b*114))/1000;
+  return (yiq >= 128) ? 'black' : 'white';
 }
 
 const regularizeEvents = ({storedEvents, eventPool, sender, payload, config}) => {
@@ -176,8 +169,8 @@ const oppositeMagic = (e, original) => {
   } else {
     let magic = prepareMagic()
     magic.style.color = original.color
-    let l = getL(window.getComputedStyle(magic).getPropertyValue('color'))
-    original.oppositeColor = (l > 50) ? 'black' : 'white'
+    let oppositeColor = getContrastYIQ(window.getComputedStyle(magic).getPropertyValue('color'))
+    original.oppositeColor = oppositeColor;
   }
   e.style.setProperty('--oppositeColor', original.oppositeColor)
 }
