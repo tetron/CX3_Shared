@@ -13,7 +13,19 @@ const getContrastYIQ = (rgba) => {
   return (yiq >= 128) ? 'black' : 'white';
 }
 
-const regularizeEvents = ({storedEvents, eventPool, sender, payload, config}) => {
+const convertVarious2UnixTime = (unknown) => {
+  try {
+    if (typeof unknown === 'number') return unknown
+    if (typeof unknown === 'string' && unknown == +unknown) return +unknown
+    console.log("CX3_shared.convertVarious2UnixTime : Incompatible date value", unknown)
+    return new Date(unknown)?.getTime() || null
+  } catch (e) {
+    console.error("CX3_shared.convertVarious2UnixTime : Invalid date value", unknown, e)
+    return null
+  }
+}
+
+const regularizeEvents = ({ storedEvents, eventPool, sender, payload, config }) => {
   eventPool.set(sender.identifier, JSON.parse(JSON.stringify(payload)))
   let calendarSet = (Array.isArray(config.calendarSet)) ? [...config.calendarSet] : []
   if (calendarSet.length > 0) {
@@ -34,6 +46,12 @@ const regularizeEvents = ({storedEvents, eventPool, sender, payload, config}) =>
   if (typeof config.preProcessor === 'function') {
     storedEvents = storedEvents.map(config.preProcessor)
   }
+
+  storedEvents = storedEvents.map((ev) => {
+    ev.startDate = convertVarious2UnixTime(ev.startDate)
+    ev.endDate = convertVarious2UnixTime(ev.endDate)
+    return ev
+  })
 
   return storedEvents
 }
