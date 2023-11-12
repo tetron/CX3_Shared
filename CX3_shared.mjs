@@ -1,5 +1,6 @@
 // This file is reserved to refactor all CX3* modules, so atm it is doing nothing but needed. Don't touch this.
 const MAGIC_IDENTIFIER = 'CX3_MAGIC'
+const ICONIFY_URL = 'https://code.iconify.design/iconify-icon/1.0.8/iconify-icon.min.js'
 
 const loaded = true
 const uid = Date.now()
@@ -52,7 +53,6 @@ const regularizeEvents = ({ storedEvents, eventPool, sender, payload, config }) 
     ev.endDate = convertVarious2UnixTime(ev.endDate)
     return ev
   })
-
   return storedEvents
 }
 
@@ -79,9 +79,9 @@ const renderEventDefault = (event) => {
   if (event.isCurrent) e.classList.add('current')
   if (event.isFuture) e.classList.add('future')
   if (event.isMultiday) e.classList.add('multiday')
-  if (!(event.isMultiday || event.fullDayEvent)) e.classList.add('singleday')    
+  if (!(event.isMultiday || event.fullDayEvent)) e.classList.add('singleday')
   e.dataset.calendarSeq = event?.calendarSeq ?? 0
-  event.calendarName ? (e.dataset.calendarName = event.calendarName) : null 
+  event.calendarName ? (e.dataset.calendarName = event.calendarName) : null
   e.dataset.color = event.color
   e.dataset.description = event.description || ''
   e.dataset.title = event.title
@@ -94,21 +94,29 @@ const renderEventDefault = (event) => {
   e.dataset.symbol = event.symbol.join(' ')
 
   e.style.setProperty('--calendarColor', event.color)
-
-  //console.log('>', this.instanceId) // TODO : Make sharable.
   oppositeMagic(e, event)
   return e
-} 
+}
 
-let renderSymbol = (e, event, useSymbol) => {
+let renderSymbol = (e, event, options) => {
+  const { useSymbol, useIconify } = options
+  const iconifyPattern = /^\S+\:\S+$/
   if (useSymbol && Array.isArray(event.symbol) && event.symbol.length > 0) {
     event.symbol.forEach((symbol) => {
       let exDom = document.createElement('span')
       exDom.classList.add('symbol')
       if (symbol) {
-        exDom.classList.add('fa', ...(symbol.split(' ').map((s) => {
-          return 'fa-' + (s.replace(/^fa\-/i, ''))
-        })))
+        const iconify = symbol.match(iconifyPattern)?.[0]
+        if (iconify && useIconify) {
+          let iconifyDom = document.createElement('iconify-icon')
+          iconifyDom.icon = iconify
+          iconifyDom.inline = true
+          exDom.appendChild(iconifyDom)
+        } else { // fontawesome
+          let faDom = document.createElement('span')
+          faDom.className = symbol
+          exDom.appendChild(faDom)
+        }
         e.classList.add('useSymbol')
       } else {
         exDom.classList.add('noSymbol')
@@ -123,11 +131,9 @@ let renderSymbol = (e, event, useSymbol) => {
 }
 
 
-const renderEvent = (event, {
-  useSymbol
-}) => {
+const renderEvent = (event, options) => {
   let e = renderEventDefault(event)
-  renderSymbol(e, event, useSymbol)
+  renderSymbol(e, event, options)
 
   let t = document.createElement('span') 
   t.classList.add('title', 'eventTitle')
@@ -136,12 +142,12 @@ const renderEvent = (event, {
   return e
 }
 
-const renderEventAgenda = (event, {useSymbol, eventTimeOptions, locale}, tm)=> {
+const renderEventAgenda = (event, {useSymbol, eventTimeOptions, locale, useIconify}, tm)=> {
   let e = renderEventDefault(event)
 
   let headline = document.createElement('div')
   headline.classList.add('headline')
-  renderSymbol(headline, event, useSymbol)
+  renderSymbol(headline, event, { useSymbol, useIconify })
 
   let time = document.createElement('div')
   time.classList.add('period')
@@ -275,6 +281,17 @@ const prepareMagic = () => {
   return magic
 }
 
+const prepareIconify = () => {
+  //if iconify is not loaded, load it.
+  if (!window.iconify && !document.getElementById('iconify')) {
+    let iconify = document.createElement('script')
+    iconify.id = 'iconify'
+    iconify.src = ICONIFY_URL
+    document.head.appendChild(iconify)
+  }
+
+}
+
 const initModule = (m, language) => {
   m.storedEvents = []
   m.locale = Intl.getCanonicalLocales(m.config.locale ?? language )?.[0] ?? ''
@@ -297,21 +314,7 @@ const displayLegend = (dom, events, options = {}) => {
   for (let l of legendData.values()) {
     let ld = document.createElement('div')
     ld.classList.add('legend')
-    if (options?.useSymbol) {
-      ld.classList.add('useSymbol') 
-    }
-    l.symbol.forEach((symbol) => {
-      let exDom = document.createElement('span')
-      exDom.classList.add('symbol')
-      if (symbol) {
-        exDom.classList.add('fa', ...(symbol.split(' ').map((s) => {
-          return 'fa-' + (s.replace(/^fa\-/i, ''))
-        })))
-      } else {
-        exDom.classList.add('noSymbol')
-      }
-      ld.appendChild(exDom)
-    })
+    renderSymbol(ld, l, options)
     let t = document.createElement('span')
     t.classList.add('title')
     t.innerHTML = l.name
@@ -423,12 +426,14 @@ export {
   uid,
   loaded,
   initModule,
+  prepareIconify,
   regularizeEvents,
   //scheduledRefresh,
   prepareEvents,
   eventsByDate,
   renderEvent,
   renderEventAgenda,
+  renderSymbol,
   prepareMagic,
   displayLegend,
   isToday,
