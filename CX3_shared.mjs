@@ -98,7 +98,7 @@ const renderEventDefault = (event) => {
   return e
 }
 
-let renderSymbol = (e, event, options) => {
+const renderSymbol = (e, event, options) => {
   const { useSymbol, useIconify } = options
   const iconifyPattern = /^\S+\:\S+$/
   if (useSymbol && Array.isArray(event.symbol) && event.symbol.length > 0) {
@@ -129,7 +129,6 @@ let renderSymbol = (e, event, options) => {
     e.appendChild(exDom)
   }
 }
-
 
 const renderEvent = (event, options) => {
   let e = renderEventDefault(event)
@@ -239,8 +238,6 @@ const prepareEvents = ({storedEvents, config, range}) => {
   return formatEvents({original: events, config})
 }
 
-
-
 const eventsByDate = ({storedEvents, config, startTime, dayCounts}) => {
   let events = formatEvents({original: storedEvents, config})
   let ebd = events.reduce((days, ev) => {
@@ -282,14 +279,13 @@ const prepareMagic = () => {
 }
 
 const prepareIconify = () => {
-  //if iconify is not loaded, load it.
-  if (!window.iconify && !document.getElementById('iconify')) {
+  // if iconify is not loaded, load it.
+  if (!window.customElements.get('iconify-icon') && !document.getElementById('iconify')) {
     let iconify = document.createElement('script')
     iconify.id = 'iconify'
     iconify.src = ICONIFY_URL
     document.head.appendChild(iconify)
   }
-
 }
 
 const initModule = (m, language) => {
