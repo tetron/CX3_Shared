@@ -26,34 +26,39 @@ const convertVarious2UnixTime = (unknown) => {
   }
 }
 
-const regularizeEvents = ({ storedEvents, eventPool, sender, payload, config }) => {
-  eventPool.set(sender.identifier, JSON.parse(JSON.stringify(payload)))
-  let calendarSet = (Array.isArray(config.calendarSet)) ? [...config.calendarSet] : []
-  if (calendarSet.length > 0) {
-    eventPool.set(sender.identifier, eventPool.get(sender.identifier).filter((ev) => {
-      return (calendarSet.includes(ev.calendarName))
-    }).map((ev) => {
-      let i = calendarSet.findIndex((name) => {
-        return name === ev.calendarName
-      }) + 1
-      ev.calendarSeq = i
-      return ev
-    }))
+const calendarFilter = (events = [], calendarSet = []) => {
+
+  let result = []
+  for (let ev of events) {
+    if (calendarSet.length === 0 || calendarSet.includes(ev.calendarName)) {
+      ev.calendarSeq = 0
+      if (calendarSet.includes(ev.calendarName)) ev.calendarSeq = calendarSet.findIndex((name) => name === ev.calendarName) + 1
+      ev.duration = +ev.endDate - +ev.startDate
+      result.push(ev)
+    }
   }
-  storedEvents = [...eventPool.values()].reduce((result, cur) => {
-    return [...result, ...cur]
-  }, [])
+  return result
+}
+
+const regularizeEvents = ({ eventPool, sender, payload, config }) => {
+  eventPool.set(sender.identifier, JSON.parse(JSON.stringify(payload)))
+  let calendarSet = (Array.isArray(config.calendarSet)) ? [ ...config.calendarSet ] : []
+
+  let temp = []
+
+  for (let eventArrays of eventPool.values()) {
+    temp = [...temp, ...(calendarFilter(eventArrays, calendarSet, temp))]
+  }
 
   if (typeof config.preProcessor === 'function') {
-    storedEvents = storedEvents.map(config.preProcessor)
+    temp = temp.map(config.preProcessor)
   }
 
-  storedEvents = storedEvents.map((ev) => {
+  return temp.map((ev) => {
     ev.startDate = convertVarious2UnixTime(ev.startDate)
     ev.endDate = convertVarious2UnixTime(ev.endDate)
     return ev
   })
-  return storedEvents
 }
 
 /* DEPRECATED */
@@ -141,7 +146,49 @@ const renderEvent = (event, options) => {
   return e
 }
 
-const renderEventAgenda = (event, {useSymbol, eventTimeOptions, locale, useIconify}, tm)=> {
+const renderEventJournal = (event, { useSymbol, eventTimeOptions, eventDateOptions, locale, useIconify }, tm = new Date()) => {
+  let e = renderEventDefault(event)
+
+  let headline = document.createElement('div')
+  headline.classList.add('headline')
+  renderSymbol(headline, event, { useSymbol, useIconify })
+
+  let title = document.createElement('div')
+  title.classList.add('title')
+  title.innerHTML = event.title
+  headline.appendChild(title)
+  e.appendChild(headline)
+
+
+  let time = document.createElement('div')
+  time.classList.add('period')
+
+  let period = document.createElement('div')
+  let st = new Date(+event.startDate)
+  let et = new Date(+event.endDate)
+  const inday = (et.getDate() === st.getDate() && et.getMonth() === st.getMonth() && et.getFullYear() === st.getFullYear())
+  period.classList.add('time', (inday) ? 'inDay' : 'notInDay')
+  period.innerHTML = new Intl.DateTimeFormat(locale, (inday) ? eventTimeOptions : { ...eventDateOptions, ...eventTimeOptions }).formatRangeToParts(st, et)
+  .reduce((prev, cur, curIndex, arr) => {
+    prev = prev + `<span class="eventTimeParts ${cur.type} seq_${curIndex}">${cur.value}</span>`
+    return prev
+  }, '')
+  e.appendChild(period)
+
+
+  let description = document.createElement('div')
+  description.classList.add('description')
+  description.innerHTML = event.description || ''
+  e.appendChild(description)
+  let location = document.createElement('div')
+  location.classList.add('location')
+  location.innerHTML = event.location || ''
+  e.appendChild(location)
+
+  return e
+}
+
+const renderEventAgenda = (event, {useSymbol, eventTimeOptions, locale, useIconify}, tm = new Date())=> {
   let e = renderEventDefault(event)
 
   let headline = document.createElement('div')
@@ -198,7 +245,16 @@ const oppositeMagic = (e, original) => {
   e.style.setProperty('--oppositeColor', original.oppositeColor)
 }
 
-const formatEvents = ({original, config}) => {
+const formatEvents = ({ original, config }) => {
+  const simpleHash = (str) => {
+    let hash = 0
+    for (let i = 0; i < str.length; i++) {
+      hash = (hash << 5) - hash + str.charCodeAt(i)
+      hash &= hash // Convert to 32bit integer
+    }
+    return (hash >>> 0).toString(36)
+  }
+
   const thisMoment = new Date()
 
   let events = original.sort((a, b) => {
@@ -213,7 +269,8 @@ const formatEvents = ({original, config}) => {
     ev.isFuture = isFuture(ev)
     ev.isFullday = ev.fullDayEvent
     ev.isMultiday = isMultiday(ev)
-    ev.today = thisMoment.toISOString().split('T')[0] === new Date(+ev.startDate).toISOString().split('T')[0]
+    ev.today = thisMoment.toISOString().split('T')[ 0 ] === new Date(+ev.startDate).toISOString().split('T')[ 0 ]
+    ev.hash = simpleHash(ev.calendarName + ev.title + ev.startDate + ev.endDate)
     return ev
   })
 
@@ -234,7 +291,7 @@ const prepareEvents = ({storedEvents, config, range}) => {
   let events = storedEvents.filter((evs) => {
     return !(evs.endDate <= range[0] || evs.startDate >= range[1])
   })
-  
+
   return formatEvents({original: events, config})
 }
 
@@ -246,7 +303,7 @@ const eventsByDate = ({storedEvents, config, startTime, dayCounts}) => {
     let st = new Date(+ev.startDate)
     let et = new Date(+ev.endDate)
 
-    while(st.getTime() < et.getTime()) {
+    while(st.getTime() <= et.getTime()) {
       let day = new Date(st.getFullYear(), st.getMonth(), st.getDate(), 0, 0, 0, 0).getTime()
       if (!days.has(day)) days.set(day, [])
       days.get(day).push(ev)
@@ -343,6 +400,10 @@ const isThisYear = (d) => {
   return (d.getTime() >= start && d.getTime() <= end)
 }
 
+const isWeekend = (d, options) => {
+  return (options.weekends.findIndex(w => w === d.getDay()))
+}
+
 const getBeginOfWeek = (d, options) => {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate() - (d.getDay() - options.firstDayOfWeek + 7 ) % 7)
 }
@@ -417,24 +478,26 @@ const makeWeatherDOM = (parentDom, forecasted) => {
 }
 
 
-
 export {
   uid,
   loaded,
   initModule,
   prepareIconify,
   regularizeEvents,
+  calendarFilter,
   //scheduledRefresh,
   prepareEvents,
   eventsByDate,
   renderEvent,
   renderEventAgenda,
+  renderEventJournal,
   renderSymbol,
   prepareMagic,
   displayLegend,
   isToday,
   isThisMonth,
   isThisYear,
+  isWeekend,
   getBeginOfWeek,
   getEndOfWeek,
   getWeekNo,
