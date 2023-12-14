@@ -27,12 +27,10 @@ const convertVarious2UnixTime = (unknown) => {
 }
 
 const calendarFilter = (events = [], calendarSet = []) => {
-
   let result = []
   for (let ev of events) {
     if (calendarSet.length === 0 || calendarSet.includes(ev.calendarName)) {
-      ev.calendarSeq = 0
-      if (calendarSet.includes(ev.calendarName)) ev.calendarSeq = calendarSet.findIndex((name) => name === ev.calendarName) + 1
+      ev.calendarSeq = calendarSet.findIndex((name) => name === ev.calendarName) + 1
       ev.duration = +ev.endDate - +ev.startDate
       result.push(ev)
     }
@@ -40,14 +38,20 @@ const calendarFilter = (events = [], calendarSet = []) => {
   return result
 }
 
+/* Deprecated */
+const addEventsToPool = ({ eventPool, sender, payload }) => {
+  if (sender) eventPool.set(sender.identifier, JSON.parse(JSON.stringify(payload)))
+}
+
+
 const regularizeEvents = ({ eventPool, sender, payload, config }) => {
-  eventPool.set(sender.identifier, JSON.parse(JSON.stringify(payload)))
+  //if (sender) eventPool.set(sender.identifier, JSON.parse(JSON.stringify(payload)))
   let calendarSet = (Array.isArray(config.calendarSet)) ? [ ...config.calendarSet ] : []
 
   let temp = []
 
   for (let eventArrays of eventPool.values()) {
-    temp = [...temp, ...(calendarFilter(eventArrays, calendarSet, temp))]
+    temp = [...temp, ...(calendarFilter(eventArrays, calendarSet))]
   }
 
   if (typeof config.preProcessor === 'function') {
@@ -139,7 +143,7 @@ const renderEvent = (event, options) => {
   let e = renderEventDefault(event)
   renderSymbol(e, event, options)
 
-  let t = document.createElement('span') 
+  let t = document.createElement('span')
   t.classList.add('title', 'eventTitle')
   t.innerHTML = event.title
   e.appendChild(t)
@@ -287,16 +291,16 @@ const formatEvents = ({ original, config }) => {
   return events
 }
 
-const prepareEvents = ({storedEvents, config, range}) => {
-  let events = storedEvents.filter((evs) => {
+const prepareEvents = ({ targetEvents, config, range }) => {
+  let events = targetEvents.filter((evs) => {
     return !(evs.endDate <= range[0] || evs.startDate >= range[1])
   })
 
   return formatEvents({original: events, config})
 }
 
-const eventsByDate = ({storedEvents, config, startTime, dayCounts}) => {
-  let events = formatEvents({original: storedEvents, config})
+const eventsByDate = ({targetEvents, config, startTime, dayCounts}) => {
+  let events = formatEvents({original: targetEvents, config})
   let ebd = events.reduce((days, ev) => {
     if (ev.endDate < startTime) return days
 
@@ -345,9 +349,10 @@ const prepareIconify = () => {
   }
 }
 
+/* DEPRECATED */
 const initModule = (m, language) => {
-  m.storedEvents = []
-  m.locale = Intl.getCanonicalLocales(m.config.locale ?? language )?.[0] ?? ''
+  //m.storedEvents = []
+  //m.locale = Intl.getCanonicalLocales(m.config.locale ?? language )?.[0] ?? ''
   m.refreshTimer = null
   m.eventPool = new Map()
 }
@@ -485,6 +490,7 @@ export {
   prepareIconify,
   regularizeEvents,
   calendarFilter,
+  addEventsToPool,
   //scheduledRefresh,
   prepareEvents,
   eventsByDate,
