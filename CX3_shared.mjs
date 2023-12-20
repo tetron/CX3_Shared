@@ -1,4 +1,8 @@
-// This file is reserved to refactor all CX3* modules, so atm it is doing nothing but needed. Don't touch this.
+/**
+ * @module CX3_shared
+ */
+
+
 const MAGIC_IDENTIFIER = 'CX3_MAGIC'
 const ICONIFY_URL = 'https://code.iconify.design/iconify-icon/1.0.8/iconify-icon.min.js'
 
@@ -7,6 +11,11 @@ const uid = Date.now()
 
 const magicPool = new Map()
 
+/**
+ * Get contrast color for better visibility from the given rgba color
+ * @param {string} rgba
+ * @returns string black or white
+ */
 const getContrastYIQ = (rgba) => {
   let [r, g, b, a] = rgba.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*(\d+\.{0,1}\d*))?\)$/).slice(1)
 
@@ -14,6 +23,11 @@ const getContrastYIQ = (rgba) => {
   return (yiq >= 128) ? 'black' : 'white';
 }
 
+/**
+ * convert various date like value to Date object
+ * @param {any} unknown dateLike value, number, string, Date object
+ * @returns Date
+ */
 const convertVarious2UnixTime = (unknown) => {
   try {
     if (typeof unknown === 'number') return unknown
@@ -26,6 +40,12 @@ const convertVarious2UnixTime = (unknown) => {
   }
 }
 
+/**
+ * Filter events by calendarSet
+ * @param {array} events
+ * @param {array} calendarSet
+ * @returns array filtered events
+ */
 const calendarFilter = (events = [], calendarSet = []) => {
   let result = []
   for (let ev of events) {
@@ -43,9 +63,12 @@ const addEventsToPool = ({ eventPool, sender, payload }) => {
   if (sender) eventPool.set(sender.identifier, JSON.parse(JSON.stringify(payload)))
 }
 
-
-const regularizeEvents = ({ eventPool, sender, payload, config }) => {
-  //if (sender) eventPool.set(sender.identifier, JSON.parse(JSON.stringify(payload)))
+/**
+ * regularize events
+ * @param {object}
+ * @returns array of events
+ */
+const regularizeEvents = ({ eventPool, config }) => {
   let calendarSet = (Array.isArray(config.calendarSet)) ? [ ...config.calendarSet ] : []
 
   let temp = []
@@ -77,7 +100,11 @@ const scheduledRefresh = ({refreshTimer, refreshInterval, job}) => {
     job()
   }, refreshInterval)
 }
-
+/**
+ * render event DOM
+ * @param {object} event
+ * @returns HTMLElement event DOM
+ */
 const renderEventDefault = (event) => {
   let e = document.createElement('div')
   e.classList.add('event')
@@ -107,6 +134,12 @@ const renderEventDefault = (event) => {
   return e
 }
 
+/**
+ * render symbol on event DOM
+ * @param {HTMLElement} e eventDom
+ * @param {object} event
+ * @param {object} options
+ */
 const renderSymbol = (e, event, options) => {
   const { useSymbol, useIconify } = options
   const iconifyPattern = /^\S+\:\S+$/
@@ -138,7 +171,12 @@ const renderSymbol = (e, event, options) => {
     e.appendChild(exDom)
   }
 }
-
+/**
+ * render event DOM
+ * @param {object} event
+ * @param {object} options
+ * @returns HTMLElement event DOM
+ */
 const renderEvent = (event, options) => {
   let e = renderEventDefault(event)
   renderSymbol(e, event, options)
@@ -150,6 +188,13 @@ const renderEvent = (event, options) => {
   return e
 }
 
+/**
+ * render event DOM for journal
+ * @param {object} event
+ * @param {object} options
+ * @param {Date} tm
+ * @returns
+ */
 const renderEventJournal = (event, { useSymbol, eventTimeOptions, eventDateOptions, locale, useIconify }, tm = new Date()) => {
   let e = renderEventDefault(event)
 
@@ -192,6 +237,13 @@ const renderEventJournal = (event, { useSymbol, eventTimeOptions, eventDateOptio
   return e
 }
 
+/**
+ * render event DOM for agenda
+ * @param {object} event
+ * @param {object} options
+ * @param {Date} tm
+ * @returns HTMLElement event DOM
+ */
 const renderEventAgenda = (event, {useSymbol, eventTimeOptions, locale, useIconify}, tm = new Date())=> {
   let e = renderEventDefault(event)
 
@@ -237,6 +289,11 @@ const renderEventAgenda = (event, {useSymbol, eventTimeOptions, locale, useIconi
   return e
 }
 
+/**
+ * set opposite color to event DOM
+ * @param {HTMLElement} e
+ * @param {object} original event
+ */
 const oppositeMagic = (e, original) => {
   if (magicPool.has(original.color)) {
     original.oppositeColor = magicPool.get(original.color)
@@ -249,6 +306,11 @@ const oppositeMagic = (e, original) => {
   e.style.setProperty('--oppositeColor', original.oppositeColor)
 }
 
+/**
+ * format events before serve
+ * @param {object}
+ * @returns array of events
+ */
 const formatEvents = ({ original, config }) => {
   const simpleHash = (str) => {
     let hash = 0
@@ -259,11 +321,11 @@ const formatEvents = ({ original, config }) => {
     return (hash >>> 0).toString(36)
   }
 
+  const duplicateSet = new Set()
+
   const thisMoment = new Date()
 
-  let events = original.sort((a, b) => {
-    return (a.startDate === b.startDate) ? a.endDate - b.endDate : a.startDate - b.startDate
-  }).map((ev) => {
+  let events = original.map((ev) => {
     ev.startDate = +ev.startDate
     ev.endDate = +ev.endDate
     let et = new Date(+ev.endDate)
@@ -274,8 +336,10 @@ const formatEvents = ({ original, config }) => {
     ev.isFullday = ev.fullDayEvent
     ev.isMultiday = isMultiday(ev)
     ev.today = thisMoment.toISOString().split('T')[ 0 ] === new Date(+ev.startDate).toISOString().split('T')[ 0 ]
-    ev.hash = simpleHash(ev.calendarName + ev.title + ev.startDate + ev.endDate)
+    ev.hash = simpleHash(ev.title + ev.startDate + ev.endDate)
     return ev
+  }).toSorted((a, b) => {
+    return (a.startDate === b.startDate) ? ((a.endDate === b.endDate) ? a.calendarSeq - b.calendarSeq : b.endDate - a.endDate) : a.startDate - b.startDate
   })
 
   if (typeof config.eventFilter === 'function') {
@@ -285,12 +349,25 @@ const formatEvents = ({ original, config }) => {
     events = events.map(config.eventTransformer)
   }
   if (typeof config.eventSorter === 'function') {
-    events = events.sort(config.eventSorter)
+    events = events.toSorted(config.eventSorter)
+  }
+
+  for (let ev of events) {
+    if (config.skipDuplicated && duplicateSet.has(ev.hash)) {
+      ev.skip = true
+      ev.duplicated = true
+    }
+    duplicateSet.add(ev.hash)
   }
 
   return events
 }
 
+/**
+ * return formatted events in the given range
+ * @param {object}
+ * @returns array of events
+ */
 const prepareEvents = ({ targetEvents, config, range }) => {
   let events = targetEvents.filter((evs) => {
     return !(evs.endDate <= range[0] || evs.startDate >= range[1])
@@ -299,6 +376,11 @@ const prepareEvents = ({ targetEvents, config, range }) => {
   return formatEvents({original: events, config})
 }
 
+/**
+ * return events by date
+ * @param {object}
+ * @returns array of events
+ */
 const eventsByDate = ({targetEvents, config, startTime, dayCounts}) => {
   let events = formatEvents({original: targetEvents, config})
   let ebd = events.reduce((days, ev) => {
@@ -327,7 +409,10 @@ const eventsByDate = ({targetEvents, config, startTime, dayCounts}) => {
     }
   })
 }
-
+/**
+ * Prepare magic DOM for color contrast calculation
+ * @returns HTMLElement magic DOM
+ */
 const prepareMagic = () => {
   let magic = document.getElementById(MAGIC_IDENTIFIER)
   if (!magic) {
@@ -339,6 +424,9 @@ const prepareMagic = () => {
   return magic
 }
 
+/**
+ * Prepare iconify
+ */
 const prepareIconify = () => {
   // if iconify is not loaded, load it.
   if (!window.customElements.get('iconify-icon') && !document.getElementById('iconify')) {
@@ -351,12 +439,16 @@ const prepareIconify = () => {
 
 /* DEPRECATED */
 const initModule = (m, language) => {
-  //m.storedEvents = []
-  //m.locale = Intl.getCanonicalLocales(m.config.locale ?? language )?.[0] ?? ''
   m.refreshTimer = null
   m.eventPool = new Map()
 }
 
+/**
+ * append legend to the given DOM
+ * @param {HTMLElement} dom
+ * @param {array} events
+ * @param {object} options
+ */
 const displayLegend = (dom, events, options = {}) => {
   let lDom = document.createElement('div')
   lDom.classList.add('legends')
@@ -384,6 +476,11 @@ const displayLegend = (dom, events, options = {}) => {
   dom.appendChild(lDom)
 }
 
+/**
+ * is today
+ * @param {Date} d
+ * @returns boolean true if the given date is today
+ */
 const isToday = (d) => {
   let tm = new Date()
   let start = (new Date(tm.getTime())).setHours(0, 0, 0, 0)
@@ -391,6 +488,11 @@ const isToday = (d) => {
   return (d.getTime() >= start && d.getTime() <= end)
 }
 
+/**
+ * is this month
+ * @param {Date} d
+ * @returns boolean true if the given date is this month
+ */
 const isThisMonth = (d) => {
   let tm = new Date()
   let start = new Date(tm.getFullYear(), tm.getMonth(), 1)
@@ -398,6 +500,11 @@ const isThisMonth = (d) => {
   return (d.getTime() >= start && d.getTime() <= end)
 }
 
+/**
+ * is this year
+ * @param {Date} d
+ * @returns boolean true if the given date is this year
+ */
 const isThisYear = (d) => {
   let tm = new Date()
   let start = new Date(tm.getFullYear(), 1, 1)
@@ -405,24 +512,50 @@ const isThisYear = (d) => {
   return (d.getTime() >= start && d.getTime() <= end)
 }
 
+/**
+ * Get weekend index from options.weekends array
+ * @param {Date} d
+ * @param {object} options
+ * @returns integer -1: not found, 0: the first weekend, 1: the second weekend, ...
+ */
 const isWeekend = (d, options) => {
   return (options.weekends.findIndex(w => w === d.getDay()))
 }
 
+/**
+ * Get begin of week
+ * @param {Date} d
+ * @param {object} options
+ * @returns Date begin of week
+ */
 const getBeginOfWeek = (d, options) => {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - (d.getDay() - options.firstDayOfWeek + 7 ) % 7)
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - (d.getDay() - options.firstDayOfWeek + 7 ) % 7, 0, 0, 0, 0)
 }
 
+/**
+ * Get end of week
+ * @param {Date} d
+ * @param {object} options
+ * @returns Date end of week
+ */
 const getEndOfWeek = (d, options) => {
   let b = getBeginOfWeek(d, options)
   return new Date(b.getFullYear(), b.getMonth(), b.getDate() + 6, 23, 59, 59, 999)
 }
 
+/**
+ * Get week number of the year
+ * @param {Date} d date object
+ * @param {Object} options { minimalDaysOfNewYear, firstDayOfWeek }
+ * @returns integer week number of the year
+ */
 const getWeekNo = (d, options) => {
   let bow = getBeginOfWeek(d, options)
   let fw = getBeginOfWeek(new Date(d.getFullYear(), 0, options.minimalDaysOfNewYear), options)
-  if (bow.getTime() < fw.getTime()) fw = getBeginOfWeek(new Date(d.getFullYear() - 1, options), 0, options.minimalDayosOfNewYear)
-  let count = 1;
+  let nfw = getBeginOfWeek(new Date(d.getFullYear() + 1, 0, options.minimalDaysOfNewYear), options)
+  if (bow.getTime() < fw.getTime()) fw = getBeginOfWeek(new Date(d.getFullYear() - 1, 0, options.minimalDayosOfNewYear), options)
+  let count = 1
+  if (bow.getTime() === nfw.getTime()) return count
   let t = new Date(fw.getTime())
   while (bow.getTime() > t.getTime()) {
     t.setDate(t.getDate() + 7)
@@ -431,19 +564,39 @@ const getWeekNo = (d, options) => {
   return count
 }
 
+/**
+ *  Check if the event is passed
+ * @param {Object} ev event object
+ * @returns boolean true if the event is passed
+ */
 const isPassed = (ev) => {
   return (ev.endDate < Date.now())
 }
 
+/**
+ * Check if the event is future
+ * @param {Object} ev event object
+ * @returns boolean true if the event is future
+ */
 const isFuture = (ev) => {
   return (ev.startDate > Date.now())
 }
 
+/**
+ * Check if the event is current
+ * @param {Object} ev event object
+ * @returns boolean true if the event is current
+ */
 const isCurrent = (ev) => {
   let tm = Date.now()
   return (ev.endDate >= tm && ev.startDate <= tm)
 }
 
+/**
+ * Check if the event is multiday
+ * @param {Object} ev event object
+ * @returns boolean true if the event is multiday
+ */
 const isMultiday = (ev) => {
   let s = new Date(+ev.startDate)
   let e = new Date(+ev.endDate)
@@ -451,17 +604,33 @@ const isMultiday = (ev) => {
     || (s.getMonth() !== e.getMonth())
     || (s.getFullYear() !== e.getFullYear()))
 }
-
-const getRelativeDate = (d, index) => {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + index)
+/**
+ *  Get relative date object from the given date
+ * @param {Date} d
+ * @param {*} gap
+ * @returns Date new date object
+ */
+const getRelativeDate = (d, gap) => {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + gap)
 }
 
+/**
+ * Get difference from today
+ * @param {Date} d
+ * @returns integer gap from today
+ */
 const gapFromToday = (d) => {
   const MS = 24 * 60 * 60 * 1000
   const t = new Date()
   return Math.floor((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(t.getFullYear(), t.getMonth(), t.getDate())) / MS)
 }
 
+/**
+ * Make weather DOM and append it to parent DOM
+ * @param {HTMLElement} parentDom
+ * @param {Object} forecasted
+ * @returns HTMLElement weather DOM
+ */
 const makeWeatherDOM = (parentDom, forecasted) => {
   if (forecasted && forecasted?.weatherType) {
     let weatherDom = document.createElement('div')
