@@ -84,6 +84,15 @@ const regularizeEvents = ({ eventPool, config }) => {
   return temp.map((ev) => {
     ev.startDate = convertVarious2UnixTime(ev.startDate)
     ev.endDate = convertVarious2UnixTime(ev.endDate)
+    if (ev.fullDayEvent) {
+      let st = new Date(+ev.startDate)
+      let et = new Date(+ev.endDate)
+      st.setHours(0, 0, 0, 0)
+      et.setDate(et.getDate() - 1)
+      et.setHours(23, 59, 59, 999)
+      ev.startDate = st.getTime()
+      ev.endDate = et.getTime()
+    }
     return ev
   })
 }
