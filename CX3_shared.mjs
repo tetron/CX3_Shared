@@ -80,7 +80,7 @@ const regularizeEvents = ({ eventPool, config }) => {
   if (typeof config.preProcessor === 'function') {
     temp = temp.map(config.preProcessor)
   }
-
+  //rollback
   return temp.map((ev) => {
     ev.startDate = convertVarious2UnixTime(ev.startDate)
     ev.endDate = convertVarious2UnixTime(ev.endDate)
