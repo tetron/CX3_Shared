@@ -338,6 +338,13 @@ const formatEvents = ({ original, config }) => {
     ev.isCurrent = isCurrent(ev)
     ev.isFuture = isFuture(ev)
     ev.isFullday = ev.fullDayEvent
+    if (ev.isFullday) {
+      let gap = +ev.endDate - +ev.startDate
+      if (gap % (1000 * 60 * 60 * 24) === 0) {
+        ev.startDate = new Date(+ev.startDate).setHours(0, 0, 0, 0)
+        ev.endDate = new Date(+ev.startDate + gap)
+      }
+    }
     ev.isMultiday = isMultiday(ev)
     ev.today = thisMoment.toISOString().split('T')[ 0 ] === new Date(+ev.startDate).toISOString().split('T')[ 0 ]
     ev.hash = simpleHash(ev.title + ev.startDate + ev.endDate)
@@ -345,6 +352,8 @@ const formatEvents = ({ original, config }) => {
   }).toSorted((a, b) => {
     return (a.startDate === b.startDate) ? ((a.endDate === b.endDate) ? a.calendarSeq - b.calendarSeq : b.endDate - a.endDate) : a.startDate - b.startDate
   })
+
+
 
   if (typeof config.eventFilter === 'function') {
     events = events.filter(config.eventFilter)
