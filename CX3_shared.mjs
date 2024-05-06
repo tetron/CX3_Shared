@@ -340,7 +340,7 @@ const formatEvents = ({ original, config }) => {
       let gap = +ev.endDate - +ev.startDate
       if (gap % (1000 * 60 * 60 * 24) === 0) {
         ev.startDate = new Date(+ev.startDate).setHours(0, 0, 0, 0)
-        ev.endDate = new Date(ev.startDate.valueOf() + gap)
+        ev.endDate = new Date(+ev.startDate + gap).valueOf()
       }
     }
     let et = new Date(+ev.endDate)
@@ -394,11 +394,11 @@ const prepareEvents = ({ targetEvents, config, range }) => {
  * @param {object}
  * @returns array of events
  */
-const eventsByDate = ({targetEvents, config, startTime, dayCounts}) => {
-  let events = formatEvents({original: targetEvents, config})
+// TO_CHECK : Should it be deprecated??
+const eventsByDate = ({ targetEvents, config, startTime, dayCounts }) => {
+  let events = formatEvents({ original: targetEvents, config })
   let ebd = events.reduce((days, ev) => {
     if (ev.endDate < startTime) return days
-
     let st = new Date(+ev.startDate)
     let et = new Date(+ev.endDate)
 
