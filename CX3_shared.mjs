@@ -332,8 +332,6 @@ const formatEvents = ({ original, config }) => {
   let events = original.map((ev) => {
     ev.startDate = +ev.startDate
     ev.endDate = +ev.endDate
-    let et = new Date(+ev.endDate)
-    if (et.getHours() === 0 && et.getMinutes() === 0 && et.getSeconds() === 0 && et.getMilliseconds() === 0) ev.endDate = ev.endDate - 1
     ev.isPassed = isPassed(ev)
     ev.isCurrent = isCurrent(ev)
     ev.isFuture = isFuture(ev)
@@ -345,6 +343,8 @@ const formatEvents = ({ original, config }) => {
         ev.endDate = new Date(+ev.startDate + gap).valueOf()
       }
     }
+    let et = new Date(+ev.endDate)
+    if (et.getHours() === 0 && et.getMinutes() === 0 && et.getSeconds() === 0 && et.getMilliseconds() === 0) ev.endDate = ev.endDate - 1
     ev.isMultiday = isMultiday(ev)
     ev.today = thisMoment.toISOString().split('T')[ 0 ] === new Date(+ev.startDate).toISOString().split('T')[ 0 ]
     ev.hash = simpleHash(ev.title + ev.startDate + ev.endDate)
