@@ -264,11 +264,24 @@ const renderEventAgenda = (event, {useSymbol, eventTimeOptions, locale, useIconi
   let startTime = document.createElement('div')
   let st = new Date(+event.startDate)
   startTime.classList.add('time', 'startTime', (st.getDate() === tm.getDate()) ? 'inDay' : 'notInDay')
-  startTime.innerHTML = new Intl.DateTimeFormat(locale, eventTimeOptions).formatToParts(st).reduce((prev, cur, curIndex) => {
-    prev = prev + `<span class="eventTimeParts ${cur.type} seq_${curIndex}">${cur.value}</span>`
-    return prev
-  }, '')
-  headline.appendChild(startTime)
+
+  let brieftime = "";
+  let hrs = st.getHours();
+  if (hrs > 12) { hrs -= 12 };
+  if (st.getMinutes() === 0) {
+    brieftime = `${hrs}`;
+  } else if (st.getMinutes() < 10) {
+    brieftime = `${hrs}:0${st.getMinutes()}`;
+  } else {
+    brieftime = `${hrs}:${st.getMinutes()}`;
+  }
+  if (st.getHours() > 11) {
+    brieftime = `${brieftime}p`;
+  } else {
+    brieftime = `${brieftime}a`;
+  }
+  startTime.innerHTML = brieftime;
+  headline.appendChild(startTime);
 
   let endTime = document.createElement('div')
   let et = new Date(+event.endDate)
