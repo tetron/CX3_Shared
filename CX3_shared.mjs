@@ -17,7 +17,7 @@ const magicPool = new Map()
  * @returns string black or white
  */
 const getContrastYIQ = (rgba) => {
-  let [r, g, b, a] = rgba.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*(\d+\.{0,1}\d*))?\)$/).slice(1)
+  let [r, g, b] = rgba.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*(\d+\.{0,1}\d*))?\)$/).slice(1)
 
   var yiq = ((r*299)+(g*587)+(b*114))/1000;
   return (yiq >= 128) ? 'black' : 'white';
@@ -84,26 +84,30 @@ const regularizeEvents = ({ eventPool, config }) => {
   return temp.map((ev) => {
     ev.startDate = convertVarious2UnixTime(ev.startDate)
     ev.endDate = convertVarious2UnixTime(ev.endDate)
+    /* //Unused : I forgot why I wrote this code...
     if (ev.fullDayEvent) {
       let st = new Date(+ev.startDate)
       let et = new Date(+ev.endDate)
     }
+    */
     return ev
   })
 }
 
 /* DEPRECATED */
-const scheduledRefresh = ({refreshTimer, refreshInterval, job}) => {
-  if (refreshTimer) {
-    clearTimeout(refreshTimer)
-    refreshTimer = null
+/*
+  const scheduledRefresh = ({refreshTimer, refreshInterval, job}) => {
+    if (refreshTimer) {
+      clearTimeout(refreshTimer)
+      refreshTimer = null
+    }
+    refreshTimer = setTimeout(() => {
+      clearTimeout(refreshTimer)
+      refreshTimer = null
+      job()
+    }, refreshInterval)
   }
-  refreshTimer = setTimeout(() => {
-    clearTimeout(refreshTimer)
-    refreshTimer = null
-    job()
-  }, refreshInterval)
-}
+*/
 /**
  * render event DOM
  * @param {object} event
@@ -146,7 +150,7 @@ const renderEventDefault = (event) => {
  */
 const renderSymbol = (e, event, options) => {
   const { useSymbol, useIconify } = options
-  const iconifyPattern = /^\S+\:\S+$/
+  const iconifyPattern = /^\S+:\S+$/
   if (useSymbol && Array.isArray(event.symbol) && event.symbol.length > 0) {
     event.symbol.forEach((symbol) => {
       let exDom = document.createElement('span')
@@ -196,10 +200,9 @@ const renderEvent = (event, options) => {
  * render event DOM for journal
  * @param {object} event
  * @param {object} options
- * @param {Date} tm
  * @returns
  */
-const renderEventJournal = (event, { useSymbol, eventTimeOptions, eventDateOptions, locale, useIconify }, tm = new Date()) => {
+const renderEventJournal = (event, { useSymbol, eventTimeOptions, eventDateOptions, locale, useIconify }) => {
   let e = renderEventDefault(event)
 
   let headline = document.createElement('div')
@@ -222,7 +225,7 @@ const renderEventJournal = (event, { useSymbol, eventTimeOptions, eventDateOptio
   const inday = (et.getDate() === st.getDate() && et.getMonth() === st.getMonth() && et.getFullYear() === st.getFullYear())
   period.classList.add('time', (inday) ? 'inDay' : 'notInDay')
   period.innerHTML = new Intl.DateTimeFormat(locale, (inday) ? eventTimeOptions : { ...eventDateOptions, ...eventTimeOptions }).formatRangeToParts(st, et)
-  .reduce((prev, cur, curIndex, arr) => {
+  .reduce((prev, cur, curIndex) => {
     prev = prev + `<span class="eventTimeParts ${cur.type} seq_${curIndex}">${cur.value}</span>`
     return prev
   }, '')
@@ -261,7 +264,7 @@ const renderEventAgenda = (event, {useSymbol, eventTimeOptions, locale, useIconi
   let startTime = document.createElement('div')
   let st = new Date(+event.startDate)
   startTime.classList.add('time', 'startTime', (st.getDate() === tm.getDate()) ? 'inDay' : 'notInDay')
-  startTime.innerHTML = new Intl.DateTimeFormat(locale, eventTimeOptions).formatToParts(st).reduce((prev, cur, curIndex, arr) => {
+  startTime.innerHTML = new Intl.DateTimeFormat(locale, eventTimeOptions).formatToParts(st).reduce((prev, cur, curIndex) => {
     prev = prev + `<span class="eventTimeParts ${cur.type} seq_${curIndex}">${cur.value}</span>`
     return prev
   }, '')
@@ -270,7 +273,7 @@ const renderEventAgenda = (event, {useSymbol, eventTimeOptions, locale, useIconi
   let endTime = document.createElement('div')
   let et = new Date(+event.endDate)
   endTime.classList.add('time', 'endTime', (et.getDate() === tm.getDate()) ? 'inDay' : 'notInDay')
-  endTime.innerHTML = new Intl.DateTimeFormat(locale, eventTimeOptions).formatToParts(et).reduce((prev, cur, curIndex, arr) => {
+  endTime.innerHTML = new Intl.DateTimeFormat(locale, eventTimeOptions).formatToParts(et).reduce((prev, cur, curIndex) => {
     prev = prev + `<span class="eventTimeParts ${cur.type} seq_${curIndex}">${cur.value}</span>`
     return prev
   }, '')
@@ -451,10 +454,12 @@ const prepareIconify = () => {
 }
 
 /* DEPRECATED */
+/*
 const initModule = (m, language) => {
   m.refreshTimer = null
   m.eventPool = new Map()
 }
+*/
 
 /**
  * append legend to the given DOM
@@ -668,7 +673,7 @@ const makeWeatherDOM = (parentDom, forecasted) => {
 export {
   uid,
   loaded,
-  initModule,
+  //initModule,
   prepareIconify,
   regularizeEvents,
   calendarFilter,

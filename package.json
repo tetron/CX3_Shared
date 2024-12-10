@@ -1,10 +1,12 @@
 {
   "name": "cx3_shared",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "CX3 Shared library",
   "main": "CX3_Shared.mjs",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "repository": {
     "type": "git",
@@ -15,5 +17,10 @@
   "bugs": {
     "url": "https://github.com/MMRIZE/CX3_Shared/issues"
   },
-  "homepage": "https://github.com/MMRIZE/CX3_Shared#readme"
+  "homepage": "https://github.com/MMRIZE/CX3_Shared#readme",
+  "devDependencies": {
+    "@eslint/js": "^9.16.0",
+    "eslint": "^9.16.0",
+    "globals": "^15.13.0"
+  }
 }
